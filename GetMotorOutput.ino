@@ -1,7 +1,10 @@
 // This is the best I can do for the code without testing on motor and having the encoder 
 #include <Encoder.h> // have to install encoder library see instructions on handout
+#include <Wire.h>
+#define SLAVE_ADDRESS 0x04
 
 Encoder knobLeft(2, 5);
+Encoder knobRight(7, 8);
 void setup() {
   // put your setup code here, to run once:
   pinMode(4, OUTPUT);
@@ -11,28 +14,31 @@ void setup() {
   pinMode(10, OUTPUT);
   digitalWrite(4, HIGH);
   pinMode(12, INPUT);
-  Serial.begin(250000);
-  digitalWrite(7, LOW);
-  analogWrite(9, 0);
+  Serial.begin(38400);
+  Wire.begin(SLAVE_ADDRESS);
   delay(1000);
 }
-
 long postitionLeft =-999;
+long positionRight = -999;
+long leftAng = 0;
 
 void loop() {
   // put your main code here, to run repeatedly:
-  digitalWrite(7, LOW);
-  analogWrite(9, 127); // Or what ever speed we want robot to go
-  if (millis() < 2000) & (millis() > 1000) {
+  analogWrite(9, 64);
+  digitalWrite(7, LOW); // Or what ever speed we want robot to go
+  if ((millis() < 2000) && (millis() > 1000)) {
     
     //OUTPUT MOTOR ANGULAR VELOCITY AND POSITION
     long newLeft; // new postion
     newLeft=knobLeft.read() % 3200; // mod so that output is between 0 and 2 pi
     double leftAng =  (double)newLeft * 6.28 / 3200; // calulation of angular position
-    Serial.print("Wheel positon = "); // print 
+    //Serial.print("Wheel positon = "); // print 
     Serial.print(leftAng);
+    Serial.print(",");
+    //Serial.println();
+    Serial.print(micros());
     Serial.println();
-    positionLeft=newLeft; // position counter equals new position counter
+    postitionLeft=newLeft; // position counter equals new position counter
     
      // if a character is sent from the serial monitor,
   // reset both back to zero.
