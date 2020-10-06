@@ -2,13 +2,14 @@
 #include <Encoder.h> // have to install encoder library see instructions on handout
 Encoder knobLeft(2, 5);
 Encoder knobRight(7, 8);
-//double Kp = 3;     // This value works
-double Kp = 1.743511643388056;  // This value works
+double Kp = 3;     //4.04279756570629;  //1902322209485; // This value works
+//double Kp = 1.743511643388056;  // This value works
+//double Kp = 1;
 //double Ki = 0;   //609397897048;
 double Ki = 0.13; //31442; //08562799;
 //double Kd = 0.569618462570328;
 double Kd = 1;
-double r = 1;
+double r = -1;
 double angVel = 0;
 double prePos = 0;
 void setup() {
@@ -59,7 +60,7 @@ void loop() {
 
    double e = r - leftAng; // Error in rad
    if (abs(e) <= 0.02) {
-    Ki = 0.4;
+    Ki = 0.3;
    }
    if (Ts > 0) {
      D = (e - ePast)/Ts; // rad/sec Derivative 
@@ -74,14 +75,18 @@ void loop() {
    if (abs(u) > umax) {
     //u = umax;
      u = signbit(u)*umax;
-     e = signbit(e)*min(umax / Kp, abs(e));
      I = (u-Kp*e-Kd*D)/Ki;
    }
   // u = umax - u;
   if (abs(e) == 0) {
     u = 0;
    }
+
+   Serial.print(u);
+   Serial.println();
    i = (u / umax) * 255;
+   Serial.print(i);
+   Serial.println();
 
    analogWrite(9, abs(i));
    digitalWrite(7, signbit(-1*e));
