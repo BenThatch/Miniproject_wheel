@@ -2,13 +2,15 @@
 #include <Encoder.h> // have to install encoder library see instructions on handout
 Encoder knobLeft(2, 5);
 Encoder knobRight(7, 8);
-double Kp = 3.61902322209485;
-double Ki = 1.11609397897048;
+//double Kp = 3;     // This value works
+double Kp = 1.743511643388056;  // This value works
+//double Ki = 0;   //609397897048;
+double Ki = 0.13; //31442; //08562799;
 //double Kd = 0.569618462570328;
-double Kd = 3;
+double Kd = 1;
 double r = 1;
-double time1 = 0;
-double time2 = 0;
+double angVel = 0;
+double prePos = 0;
 void setup() {
   // put your setup code here, to run once:
   pinMode(4, OUTPUT);
@@ -18,7 +20,7 @@ void setup() {
   pinMode(10, OUTPUT);
   digitalWrite(4, HIGH);
   pinMode(12, INPUT);
-  Serial.begin(250000); // FIX FIX FIX FIX FIX 
+  Serial.begin(250000); 
   delay(1000);
 }
 
@@ -31,10 +33,11 @@ double ePast = 0;
 double Ts = 0;
 double Tc = millis();
 double u = 0;
-double umax = 127;
+double i = 0;
+double umax = 7.2;
 
 void loop() {
-   time1 = micros();
+   //time1 = micros();
    long newLeft; // new postion
    newLeft=knobLeft.read(); //% 3200; // mod so that output is between 0 and 2 pi
    double leftAng =  (double)newLeft * 6.28 / 3200; // calulation of angular position
@@ -46,16 +49,18 @@ void loop() {
     knobLeft.write(0);
     knobRight.write(0);
   }
-  Serial.print("P : ");
-  Serial.print(leftAng);
-  Serial.println();
-  time2 = micros();
-  //Serial.print(time2-time1);
+    Serial.print(micros());
+    Serial.print(",");
+    Serial.print(leftAng);
+    Serial.print(",");
+    angVel = 1000*(leftAng - (1.00 - ePast))/Ts;
+    Serial.print(angVel);
+    Serial.println();
 
    double e = r - leftAng; // Error in rad
-   Serial.print("e : ");
-   Serial.print(e);
-   Serial.println();
+   if (abs(e) <= 0.02) {
+    Ki = 0.4;
+   }
    if (Ts > 0) {
      D = (e - ePast)/Ts; // rad/sec Derivative 
      ePast = e;
@@ -72,17 +77,16 @@ void loop() {
      e = signbit(e)*min(umax / Kp, abs(e));
      I = (u-Kp*e-Kd*D)/Ki;
    }
-   u = 127 - abs(u);
-   Serial.print("U : ");
-   Serial.print(u);
-   Serial.println();
-   Serial.print("Sign : ");
-   Serial.print(signbit(-1*e));
-   Serial.println();
-   analogWrite(9, abs(u));
+  // u = umax - u;
+  if (abs(e) == 0) {
+    u = 0;
+   }
+   i = (u / umax) * 255;
+
+   analogWrite(9, abs(i));
    digitalWrite(7, signbit(-1*e));
    Ts = millis() - Tc;
    Tc = millis();
-   delay(18);
+   delay(25);
     
 }
