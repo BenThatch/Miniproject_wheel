@@ -1,4 +1,9 @@
-// This is the best I can do for the code without testing on motor and having the encoder 
+// SEED Lab Fall 2020
+// Group 2
+// Mini Project
+// This code reads in the quardrent value from the pi, and uses a PID Controller to turn
+// the wheel to the quadrent
+
 #include <Encoder.h> // have to install encoder library see instructions on handout
 #include <Wire.h>
 
@@ -7,19 +12,16 @@
 
 Encoder knobLeft(2, 5);
 Encoder knobRight(7, 8);
-double Kp = 1.5;     //4.04279756570629;  //1902322209485; // This value works
-//double Kp = 1.743511643388056;  // This value works
-//double Kp = 1;
-//double Ki = 0;   //609397897048;
-double Ki = 0.09; //31442; //08562799;
-//double Kd = 0.569618462570328;
-double Kd = 0.7;
-double r = 0;
+double Kp = 2;    // V/rad
+double Ki = 0.24; // V/rad*sec
+double Kd = 0.1; // V/(rad/sec)
+double r = 0; // Desired radian
 int number = 0; // Data recieved
-double angVel = 0;
-double prePos = 0;
+double angVel = 0; // Current Velocity 
+double prePos = 0; // Previous Position
 void setup() {
   // put your setup code here, to run once:
+  // Setting up motor control pins
   pinMode(4, OUTPUT);
   pinMode(7, OUTPUT);
   pinMode(8, OUTPUT);
@@ -37,20 +39,18 @@ void setup() {
 }
 
 long postitionLeft =-999;
-//long positionRight = -999;
 long leftAng = 0;
-double I = 0;
-double D = 0;
-double ePast = 0;
-double Ts = 0;
-double Tc = millis()/1000;
-double u = 0;
-double i = 0;
-double umax = 7.2;
+double I = 0; // Integral
+double D = 0; // Derivative
+double ePast = 0; // Past error
+double Ts = 0; // Passed Time
+double Tc = millis(); // Current time
+double u = 0; // Output of PID Controller (V)
+double control = 0; // Input to PWM waveform (0-255)
+double umax = 7.2; // Max voltage of battery and U)
  
 void loop() {  
-   //time1 = micros();
-
+  // number is quadrant from pi and r is radians to move
    if (number == 2) {
     r = 1.57;
    } else if (number == 3) {
@@ -60,11 +60,10 @@ void loop() {
    } else if (number == 1){
     r = 0;
    }
-   //r = 3.14;
    //Serial.println(r); // Remove later
    long newLeft; // new postion
-   newLeft=knobLeft.read(); //% 3200; // mod so that output is between 0 and 2 pi
-   double leftAng =  (double)newLeft * 6.28 / 3200; // calulation of angular position
+   newLeft=knobLeft.read(); // Read in position count
+   double leftAng =  (double)newLeft * 6.28 / 3200; // calulation of angular position (rad)
 
     // reset both back to zero.
   if (Serial.available()) {
@@ -73,23 +72,21 @@ void loop() {
     knobLeft.write(0);
     knobRight.write(0);
   }
+    // Output data to plot in Matlab to compare to simulated function
     Serial.print(micros());
     Serial.print(",");
     Serial.print(leftAng);
     Serial.print(",");
-    angVel = (leftAng - (r - ePast))/Ts;
+    angVel = (leftAng - prePos)/Ts;
     Serial.print(angVel);
     Serial.println();
-
-    Serial.println(number);
-    Serial.println();
+    
+    //Serial.println(number); // For debugging
+    //Serial.println();
 
    double e = r - leftAng; // Error in rad
-   Serial.print("Error: ");
-   Serial.println(e);
-   if (abs(e) <= 0.02) {
-    Ki = 0;
-   }
+   //Serial.print("Error: ");
+   //Serial.println(e);
    if (Ts > 0) {
      D = (e - ePast)/Ts; // rad/sec Derivative 
      ePast = e;
@@ -100,46 +97,50 @@ void loop() {
    I = I + Ts*e; // Rad*s
    u = Kp*e + Ki*I + Kd*D; // (V/rad) * rad + (V/rad*sec) * (rad/sec) + (V/(rad/sec)) * (rad/sec)
    // Final Units from above is only V
-  Serial.print("Volts Out Unmaxed: ");
-   Serial.print(u);
-   Serial.println();
+   //Serial.print("Volts Out Unmaxed: ");
+   //Serial.print(u);
+   //Serial.println();
+
+   // u cannot be larger than umax, but must maintain sign
    if (abs(u) > umax) {
-    u = umax;
-     //u = signbit(u)*umax;
-     //I = (u-Kp*e-Kd*D)/Ki;
+    if (signbit(u)){
+      u = -umax;
+    } else {
+      u = umax;
+    }
    }
-  // u = umax - u;
+  // If u is very close to zero, make zero because using doubles
   if (abs(u) < 0.005) {
     u = 0;
    }
-   Serial.print("Volts Out Maxed: ");
-   Serial.print(u);
-   Serial.println();
-   i = (u / umax) * 255;
-   Serial.print("Motor Command: ");
-   Serial.print(i);
-   Serial.println();
+   //Serial.print("Volts Out Maxed: "); // For debugging
+   //Serial.print(u);
+   //Serial.println();
+   control = (u / umax) * 255; // Making input between 0-255
+   //Serial.print("Motor Command: "); // For Debugging
+   //Serial.print(control);
+   //Serial.println();
 
-   analogWrite(9, abs(i));
-   digitalWrite(7, signbit(-1*u));
-   Ts = ((millis()/1000) - Tc);
-   Tc = millis()/1000;
-   //Serial.print("Loop :");
-   //Serial.println(Ts);
-   
-   delay(LOOP_DELAY);
+   analogWrite(9, abs(control)); // Writing to motor
+   digitalWrite(7, signbit(-1*u)); // Writing direction to motor using sign of u
+   Ts = (millis() - Tc)/1000; // Getting loop time
+   Tc = millis(); // Getting current time
+   prePos = leftAng; // Current position becomes previous
+   delay(LOOP_DELAY); // Delay loop
    
     
 } // End loop
 
 int stop = 0;
 
+// Interrupt for recieving data from pi
 void receiveData(int byteCount){
   while(Wire.available()) {
     number = Wire.read();
   } // End while
 } // End void
 
+// Interrupt for sending data (not used)
 void sendData(){
   Wire.write(number);
 }
